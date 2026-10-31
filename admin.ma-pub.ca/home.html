@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--[if IE]>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+<![endif]-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acceuil | MaPlateforme.ca</title>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+<link href='https://fonts.googleapis.com/css?family=Montserrat:400' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" type="text/css" href="assets/css/styles.css">
+</head>
+<body>
+
+<div class="container-fluid" id="cont">
+<div class="row-fluid">
+<div class="col-xs-12 centering text-center">
+
+<div class="col-md-offset-4 col-xs-12 col-md-4 col-md-offset-4" id="fancy" style="display:none;">
+
+	<div class="dropdown">
+		<h2>Bonjour!<br/>Que voulez-vous faire ?</h2>
+    <br/>
+    <div class="btn-group-vertical centering text-center" role="group" aria-label="">
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="membre-edit">Gestion du Profil</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="comments-listing">Gestion des commentaires</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="primaire-home">Informations Primaire</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="bibliotheque-home">Bibliothèque d'images</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="landing-home">Gestion de la Landing page</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="pages-listing">Gestion des pages supplémentaires</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="blog-home">Gestion du Blogue</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="portfolio-home">Gestion du Portfolio</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="inventaire-home">Gestion Boutique en ligne</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="gestion-menus">Gestion des menus supplémentaires #1</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="gestion-menus2">Gestion des menus supplémentaires #2</button>
+    <button class="col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="reseaux-sociaux">Réseaux Sociaux</button>
+    <button class="visible-xs visible-sm col-xs-12 col-sm-6 col-md-4 btn btn-primary" type="button" id="btn_bas_1x">Déconnexion</button>
+    </div>
+
+  </div>
+</div>
+
+</div>
+</div>
+
+<button type="button" class="hidden-xs hidden-sm btn btn-primary btn-circle" id="btn_bas_1" data-toggle="tooltip" data-placement="bottom" title="Déconnexion"><i class="zoomimg fa fa-sign-out"></i></button>
+
+<div class="hidden-xs hidden-sm" id="top_right">
+<p>
+<strong>www.lingeriemaillotschristine.ca</strong>
+<br/>
+Server IP: 192.99.85.246<br/>
+PHP version: 8.4.27<br/>
+<br/>
+Pour informations: <a href="mailto:info@mapf.ca">info@mapf.ca</a>
+<br/>
+Dernière modification: 2026-10-31 15:52:15</p>
+<img class="img-responsive" src="assets/images/maplateforme-logo.png" alt="MaPlateforme">
+</div>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script><script type="text/javascript" src="assets/js/scripts.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function() {
+$(window).load(function() {
+    $('#fancy').fadeIn('slow');
+    $('#btn_bas_1').fadeIn('500');
+    $('#top_right').fadeIn('500');
+});
+
+
+$("#form_admin_dev").on('click', '#btn_admin_dev', function(){
+  $('#btn_admin_dev').html("<i class='fa fa-spinner fa-pulse'></i> Saving...");
+
+    action = "action_admin_dev"; // add or edit
+    admin_dev = document.getElementById('admin_dev').checked;
+
+    var formData = {action:action, admin_dev:admin_dev, submit:true};
+    $.ajax({ 
+        url : "//admin.ma-pub.ca/ajax-admin-member.php", 
+        type: "POST", 
+        data : formData,
+        success: function(e) {
+            setTimeout(function() { $('#btn_admin_dev').html("<i class='fa fa-check'></i> Saved!");
+            setTimeout(function() { $('#btn_admin_dev').html("<i class='fa fa-floppy-o'></i>"); }, 1000); }, 1000);
+      		window.location.href="//admin.ma-pub.ca/home/";
+        },
+        error: function() {
+            setTimeout(function() { $('#btn_admin_dev').html("<i class='fa fa-exclamation-triangle'></i> Error!");
+            setTimeout(function() { $('#btn_admin_dev').html("<i class='fa fa-floppy-o'></i>"); }, 1000); }, 1000);
+            window.location.href="//admin.ma-pub.ca/home/";
+        }
+    });
+});
+
+
+
+$('#membre-edit').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/membre-edit/?e=173";
+    });
+});
+
+$('#comments-listing').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/comments-listing/";
+    });
+});
+
+$('#bibliotheque-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/bibliotheque-img-crop2";
+    });
+});
+
+$('#inventaire-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/inventaire-home";
+    });
+});
+
+$('#primaire-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/primaire-home";
+    });
+});
+
+$('#inventaire-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/inventaire-home";
+    });
+});
+
+$('#landing-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/landing-home";
+    });
+});
+
+$('#gestion-menus').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/gestion-menus";
+    });
+});
+
+$('#gestion-menus2').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/gestion-menus2";
+    });
+});
+
+$('#langues').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/langues-listing";
+    });
+});
+
+$('#blog-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/blog-home";
+    });
+});
+
+$('#pages-listing').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/pages-listing";
+    });
+});
+
+$('#portfolio-home').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/portfolio-home";
+    });
+});
+
+$('#reseaux-sociaux').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/reseaux-sociaux";
+    });
+});
+
+$('#pages-supplementaire').on("click", function(e){ 
+    $('#cont').fadeOut('slow', function(){
+      //window.location.href="//admin.ma-pub.ca/reseaux-sociaux";
+    });
+});
+
+$('#btn_bas_1').on("click", function(e){    
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/index/?logout";
+    });
+});
+
+$('#btn_bas_1x').on("click", function(e){    
+    $('#cont').fadeOut('slow', function(){
+      window.location.href="//admin.ma-pub.ca/index/?logout";
+    });
+});
+
+});
+</script>
+</body>
+</html>
