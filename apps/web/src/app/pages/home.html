@@ -1,0 +1,113 @@
+@let s = settings();
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      @if (s.tagline) {
+        <p class="eyebrow">{{ s.tagline }}</p>
+      }
+      <h1>{{ s.hero_title || s.site_name || 'Lingerie & Maillots Christine' }}</h1>
+      @if (s.hero_subtitle) {
+        <p class="lead">{{ s.hero_subtitle }}</p>
+      }
+      <div class="actions">
+        <a class="button" routerLink="/contact">Nous rendre visite</a>
+        @if (s.phone) {
+          <a class="button ghost" [href]="s.phone | telHref">{{ s.phone }}</a>
+        }
+      </div>
+    </div>
+    @if (s.hero_image) {
+      <div class="hero-image">
+        <img [src]="s.hero_image" alt="" fetchpriority="high" />
+      </div>
+    }
+  </div>
+</section>
+
+@if (s.home_intro) {
+  <section class="intro">
+    <div class="container narrow">
+      <app-rich-text [html]="s.home_intro" />
+    </div>
+  </section>
+}
+
+@if (s.home_gallery?.length) {
+  <section class="gallery" aria-label="Nouveautés en boutique">
+    <div class="container">
+      <ul class="strip">
+        @for (img of s.home_gallery; track img.src) {
+          <li><img [src]="img.src" [alt]="img.alt" loading="lazy" /></li>
+        }
+      </ul>
+    </div>
+  </section>
+}
+
+@if (products().length) {
+  <section class="products">
+    <div class="container">
+      <h2 class="section-title">Nos produits</h2>
+      <ul class="product-grid">
+        @for (p of products(); track p.slug) {
+          <li>
+            <a [routerLink]="['/page', p.slug]">
+              @if (p.hero_image) {
+                <img [src]="p.hero_image" alt="" loading="lazy" />
+              }
+              <span class="label">{{ p.nav_label }}</span>
+              @if (p.excerpt) {
+                <span class="excerpt">{{ p.excerpt }}</span>
+              }
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+  </section>
+}
+
+@if (video(); as v) {
+  <section class="video">
+    <div class="container narrow">
+      <div class="frame">
+        <iframe [src]="v" title="Vidéo de la boutique" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+  </section>
+}
+
+<section class="latest">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">Du blogue</h2>
+      <a routerLink="/blog">Tous les articles →</a>
+    </div>
+    @switch (latest().state) {
+      @case ('ready') {
+        <div class="post-grid">
+          @for (p of latestPosts(); track p.slug) {
+            <app-post-card [post]="p" />
+          }
+        </div>
+      }
+      @case ('loading') {
+        <p class="muted">Chargement…</p>
+      }
+      @default {
+        <p class="muted">Les articles ne peuvent pas être affichés pour le moment.</p>
+      }
+    }
+  </div>
+</section>
+
+<section class="visit">
+  <div class="container">
+    <h2 class="section-title">Venez nous voir</h2>
+    <app-visit-info [settings]="s" />
+    @if (s.review_url) {
+      <p class="review">Vous êtes venue en boutique? <a [href]="s.review_url" target="_blank" rel="noopener">Laissez-nous un avis Google</a>.</p>
+    }
+  </div>
+</section>

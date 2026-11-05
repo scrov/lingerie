@@ -1,0 +1,93 @@
+@let s = settings();
+<a class="skip" href="#contenu">Aller au contenu</a>
+
+@if (s.announcement) {
+  <div class="announcement">{{ s.announcement }}</div>
+}
+
+<header class="site-header" (keydown.escape)="closeMenus()">
+  <div class="container bar">
+    <a class="brand" routerLink="/" [attr.aria-label]="siteName() + ', accueil'">
+      @if (s.logo) {
+        <img [src]="s.logo" [alt]="siteName()" width="160" height="64" />
+      } @else {
+        <span>{{ siteName() }}</span>
+      }
+    </a>
+
+    <button
+      type="button"
+      class="menu-toggle"
+      [attr.aria-expanded]="menuOpen()"
+      aria-controls="site-nav"
+      (click)="menuOpen.set(!menuOpen())"
+    >
+      {{ menuOpen() ? 'Fermer' : 'Menu' }}
+    </button>
+
+    <nav id="site-nav" class="nav" [class.open]="menuOpen()" aria-label="Navigation principale">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Accueil</a>
+      @if (products().length) {
+        <div class="dropdown" [class.open]="productsOpen()">
+          <button type="button" [attr.aria-expanded]="productsOpen()" aria-controls="menu-produits" (click)="productsOpen.set(!productsOpen())">
+            Produits <span aria-hidden="true">▾</span>
+          </button>
+          <ul id="menu-produits">
+            @for (p of products(); track p.slug) {
+              <li><a [routerLink]="['/page', p.slug]" routerLinkActive="active">{{ p.nav_label }}</a></li>
+            }
+          </ul>
+        </div>
+      }
+      @if (team(); as t) {
+        <a [routerLink]="['/page', t.slug]" routerLinkActive="active">{{ t.nav_label }}</a>
+      }
+      <a routerLink="/blog" routerLinkActive="active">Blogue</a>
+      <a routerLink="/contact" routerLinkActive="active">Contact</a>
+      @if (s.phone) {
+        <a class="call" [href]="s.phone | telHref">{{ s.phone }}</a>
+      }
+    </nav>
+  </div>
+</header>
+
+<main id="contenu" tabindex="-1">
+  <router-outlet />
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="about">
+      <p class="footer-name">{{ siteName() }}</p>
+      @if (s.footer_about) {
+        <p>{{ s.footer_about }}</p>
+      }
+    </div>
+    <div>
+      <h2>Boutique</h2>
+      @if (s.address) {
+        <p>{{ s.address }}</p>
+      }
+      @if (s.phone) {
+        <p><a [href]="s.phone | telHref">{{ s.phone }}</a></p>
+      }
+      <p><a routerLink="/contact">Heures d’ouverture</a></p>
+    </div>
+    <div>
+      <h2>Explorer</h2>
+      <ul>
+        <li><a routerLink="/blog">Blogue</a></li>
+        @for (p of otherPages(); track p.slug) {
+          <li><a [routerLink]="['/page', p.slug]">{{ p.nav_label }}</a></li>
+        }
+        @if (s.facebook_url) {
+          <li><a [href]="s.facebook_url" target="_blank" rel="noopener">Facebook</a></li>
+        }
+        @if (s.instagram_url) {
+          <li><a [href]="s.instagram_url" target="_blank" rel="noopener">Instagram</a></li>
+        }
+      </ul>
+    </div>
+  </div>
+  <div class="container legal">© {{ year }} {{ siteName() }}</div>
+</footer>

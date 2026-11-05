@@ -1,44 +1,17 @@
 {
-  "name": "web",
-  "version": "0.0.0",
-  "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "serve:ssr:web": "node dist/web/server/server.mjs",
-    "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
-  },
+  "name": "lingerie-christine",
   "private": true,
-  "packageManager": "npm@11.19.0",
-  "dependencies": {
-    "@angular/common": "^22.2.0",
-    "@angular/compiler": "^22.2.0",
-    "@angular/core": "^22.2.0",
-    "@angular/forms": "^22.2.0",
-    "@angular/platform-browser": "^22.2.0",
-    "@angular/platform-server": "^22.2.0",
-    "@angular/router": "^22.2.0",
-    "@angular/ssr": "^22.2.4",
-    "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+  "description": "Site web de Lingerie & Maillots Christine: storefront (apps/web) and CMS (apps/cms) on Cloudflare Workers.",
+  "scripts": {
+    "install:all": "npm --prefix apps/web install && npm --prefix apps/cms install",
+    "dev:web": "npm --prefix apps/web start",
+    "dev:cms": "npm --prefix apps/cms run dev",
+    "build:web": "npm --prefix apps/web run build",
+    "test:cms": "npm --prefix apps/cms test",
+    "deploy:web": "npm --prefix apps/web run deploy",
+    "deploy:cms": "npm --prefix apps/cms run deploy"
   },
-  "devDependencies": {
-    "@angular/build": "^22.2.4",
-    "@angular/cli": "^22.2.4",
-    "@angular/compiler-cli": "^22.2.0",
-    "@tailwindcss/postcss": "^4.1.12",
-    "@types/node": "^22.20.5",
-    "jsdom": "^30.0.0",
-    "postcss": "^8.5.3",
-    "prettier": "^3.8.1",
-    "tailwindcss": "^4.1.12",
-    "typescript": "~6.0.2",
-    "vitest": "^5.0.0",
-    "wrangler": "^4.156.0",
-    "xhr2": "^0.2.1"
+  "engines": {
+    "node": ">=22"
   }
 }

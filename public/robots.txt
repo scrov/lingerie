@@ -1,3 +1,0 @@
-User-agent: *
-Disallow: /generator/
-Disallow: /Classes/

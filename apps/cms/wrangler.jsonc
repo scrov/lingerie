@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "lingerie-cms",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  // Admin UI. Requests that match a file here are served directly; everything else reaches the Worker.
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lingerie-cms",
+      "database_id": "f30aaff3-8dae-46a8-9629-70f2180ebf56",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "lingerie-media" }],
+
+  "workers_dev": true,
+  "routes": [{ "pattern": "lingerie-cms.scrov.app", "custom_domain": true }]
+
+  // Secret (not in this file): ADMIN_TOKEN — `npx wrangler secret put ADMIN_TOKEN`
+}

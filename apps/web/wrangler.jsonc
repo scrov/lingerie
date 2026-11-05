@@ -1,0 +1,22 @@
+/**
+ * Storefront Worker (Angular SSR). Configuration reference:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	// Matches the Worker already on the account.
+	"name": "lingerie",
+	"main": "./dist/server/server.mjs",
+	"compatibility_date": "2026-10-23",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./dist/browser"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"workers_dev": true,
+	"routes": [{ "pattern": "lingerie.scrov.app", "custom_domain": true }]
+	// Content comes from the CMS Worker (apps/cms) at https://lingerie-cms.scrov.app — see src/app/cms/cms.ts.
+}
