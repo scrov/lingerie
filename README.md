@@ -56,24 +56,32 @@ npm run install:all
 
 ## Deploy
 
-GitHub Actions (`.github/workflows/deploy.yml`) builds and tests both apps on every push and pull request. On a push
-to `main` or `scrov-patch-1`, or when started by hand (Actions → CI and deploy → Run workflow), it then deploys:
+Both Workers deploy from the `scrov-patch-1` branch with **Cloudflare Workers Builds** (each Worker → Settings →
+Build). Every push to that branch rebuilds and redeploys them:
 
-1. **CMS**: applies new D1 migrations, deploys the `lingerie-cms` Worker, and sets its admin password.
-2. **Storefront**: deploys the `lingerie` Worker with the static files, builds `apps/web/Dockerfile`, pushes the image
-   to Cloudflare's registry and replaces the running container.
-3. Checks that https://lingerie-cms.scrov.app and https://lingerie.scrov.app answer with a server-rendered page.
+| Setting | `lingerie` (storefront) | `lingerie-cms` (CMS) |
+| --- | --- | --- |
+| Git repository | `scrov/lingerie` | `scrov/lingerie` |
+| Branch control › Production branch | `scrov-patch-1` | `scrov-patch-1` |
+| Root directory | `apps/web` | `apps/cms` |
+| Build command | `npm run build` | *(empty)* |
+| Deploy command | `npx wrangler deploy` | `npx wrangler deploy` |
 
-Before the first run, add these repository secrets under Settings → Secrets and variables → Actions:
+The storefront deploy uploads the Worker with the static files from `dist/browser`, builds `apps/web/Dockerfile`,
+pushes the image to Cloudflare's registry and replaces the running container. If a deploy fails on the container step
+with a permissions error, edit the build token (My Profile → API Tokens) and add **Account › Containers › Edit**.
 
-| Secret | Value |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | API token. Create it from the **Edit Cloudflare Workers** template, then add **Account › Containers › Edit** and **Account › D1 › Edit**. Limit it to this account and the `scrov.app` zone. |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID (Workers & Pages overview, right-hand column). |
-| `CMS_ADMIN_TOKEN` | Optional. The CMS admin password, e.g. `openssl rand -base64 32`. When set, each deploy writes it to the CMS. Without it, set it once with `npx wrangler secret put ADMIN_TOKEN` in `apps/cms`. |
+The CMS admin password is a secret on the `lingerie-cms` Worker: Settings → Variables and Secrets → add `ADMIN_TOKEN`
+(type Secret), a long random string such as the output of `openssl rand -base64 32`. Schema changes are not applied by
+Workers Builds: run `npx wrangler d1 migrations apply lingerie-cms --remote` in `apps/cms` after adding a migration.
 
-Containers need the **Workers Paid** plan. The first container deploy can take a few minutes to come up; the workflow
-waits for it.
+Containers need the **Workers Paid** plan. The first container deploy can take a few minutes to come up.
+
+GitHub Actions (`.github/workflows/deploy.yml`) type-checks, tests and builds both apps and smoke-tests the container on
+every push and pull request. It can also deploy everything itself (migrations included) if you add the
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets; the token needs the **Edit Cloudflare Workers**
+template plus **Account › Containers › Edit** and **Account › D1 › Edit**. Use one deploy path or the other: if you
+add the secrets, disconnect Workers Builds from both Workers so they don't deploy over each other.
 
 **How the storefront runs.** Requests for files in `dist/browser` never reach the Worker. Everything else goes through
 `apps/web/worker/index.ts` to one container instance (¼ vCPU, 1 GiB, in eastern North America) running
@@ -90,8 +98,7 @@ cd ../web && npm run deploy          # ng build + wrangler deploy (builds and pu
 ```
 
 Both custom domains need the `scrov.app` zone to be on the same Cloudflare account. If `lingerie.scrov.app` is already
-attached elsewhere, Wrangler will say so; detach it there first. If the `lingerie` Worker is also connected to this
-repository through Workers Builds (Worker → Settings → Builds), disconnect it so the two don't deploy over each other.
+attached elsewhere, Wrangler will say so; detach it there first.
 
 **Recommended:** put Cloudflare Access (Zero Trust → Access → Applications) in front of
 `lingerie-cms.scrov.app/admin*` and `lingerie-cms.scrov.app/api/admin*`. The public API (`/api/…`) and `/media/…`

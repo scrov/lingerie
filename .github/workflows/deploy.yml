@@ -1,14 +1,13 @@
-# Builds and tests both apps on every push and pull request, then deploys to Cloudflare:
+# Builds and tests both apps on every push and pull request (type checks, unit tests, container smoke test).
 #
+# Optional deploy job, for when Cloudflare Workers Builds is NOT deploying these Workers (see README.md › Deploy):
 #   apps/cms  → Worker "lingerie-cms" (D1 migrations first)            https://lingerie-cms.scrov.app
 #   apps/web  → Worker "lingerie" + the Angular SSR server as a Container  https://lingerie.scrov.app
-#
-# Deploys run on pushes to main and scrov-patch-1, or manually from the Actions tab (Run workflow).
-#
-# Repository secrets (Settings → Secrets and variables → Actions):
-#   CLOUDFLARE_API_TOKEN   required. Account: Workers Scripts Edit, Containers Edit, D1 Edit, Workers R2 Storage Edit,
-#                          Account Settings Read; Zone (scrov.app): Workers Routes Edit. See README.md › Deploy.
-#   CLOUDFLARE_ACCOUNT_ID  required.
+# It runs on pushes to main and scrov-patch-1, or manually (Actions → Run workflow), and only when these repository
+# secrets exist (Settings → Secrets and variables → Actions); without them it is skipped:
+#   CLOUDFLARE_API_TOKEN   Account: Workers Scripts Edit, Containers Edit, D1 Edit, Workers R2 Storage Edit,
+#                          Account Settings Read; Zone (scrov.app): Workers Routes Edit.
+#   CLOUDFLARE_ACCOUNT_ID
 #   CMS_ADMIN_TOKEN        optional. When set, every deploy writes it to the CMS as ADMIN_TOKEN (the admin password).
 
 name: CI and deploy
@@ -132,12 +131,32 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
-  deploy:
-    name: Deploy to Cloudflare
-    needs: [cms, web]
+  credentials:
+    name: Check deploy credentials
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/scrov-patch-1'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets, so this workflow does not deploy. Cloudflare Workers Builds deploys instead (README.md › Deploy)."
+          fi
+
+  deploy:
+    name: Deploy to Cloudflare
+    needs: [cms, web, credentials]
+    if: needs.credentials.outputs.configured == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # One production deploy at a time, never cancelled halfway.
@@ -148,13 +167,6 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Check Cloudflare credentials
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets (Settings → Secrets and variables → Actions), then re-run this job."
-            exit 1
-          fi
-
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
