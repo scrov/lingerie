@@ -1,0 +1,16 @@
+/* Type-checks the front Worker (worker/) against the Workers runtime types in worker-configuration.d.ts. */
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023"],
+    "types": [],
+    "strict": true,
+    "noImplicitOverride": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["worker/**/*.ts", "worker-configuration.d.ts"]
+}

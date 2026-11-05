@@ -30,11 +30,13 @@
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
-              "allowedHosts": []
+              "allowedHosts": [
+                "lingerie.scrov.app",
+                "localhost"
+              ]
             },
             "ssr": {
-              "entry": "src/server.ts",
-              "platform": "neutral"
+              "entry": "src/server.ts"
             },
             "outputPath": "dist"
           },

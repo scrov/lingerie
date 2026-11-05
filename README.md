@@ -5,16 +5,20 @@ Everything runs on Cloudflare.
 
 ```
 apps/
-  web/     Angular 22 storefront, server-rendered     → Worker "lingerie"      → https://lingerie.scrov.app
-  cms/     Content API + admin (in French)             → Worker "lingerie-cms"  → https://lingerie-cms.scrov.app
+  web/     Angular 22 storefront, server-rendered     → Worker "lingerie" + Container → https://lingerie.scrov.app
+  cms/     Content API + admin (in French)             → Worker "lingerie-cms"         → https://lingerie-cms.scrov.app
 legacy/
   lingeriechristine.ca/   Snapshot of the old site's HTML (not deployed). Its content was imported into the CMS.
 ```
 
 ```
-Browser ──▶ lingerie (Angular SSR) ──fetch──▶ lingerie-cms ──▶ D1  "lingerie-cms"   (pages, posts, settings)
-   │                                                     └──▶ R2  "lingerie-media" (images uploaded in the admin)
-   └──▶ /uploads/…  static images from the old site, served by the storefront
+Browser ──▶ lingerie.scrov.app
+              ├─ static file (JS, CSS, /uploads/…)? ──▶ served from the edge (Workers Static Assets)
+              └─ page ──▶ Worker "lingerie" ──▶ Durable Object ──▶ Container: Angular SSR on Node
+                                                                       │ fetch
+                                                                       ▼
+                                                    lingerie-cms ──▶ D1 "lingerie-cms"   (pages, posts, settings)
+                                                                 └─▶ R2 "lingerie-media" (images uploaded in the admin)
 ```
 
 ## What's where
@@ -44,7 +48,7 @@ pieces. Every route is rendered on the server per request, so CMS edits show up 
 
 ## Setup
 
-Node 22+. Each app has its own dependencies:
+Node 22.22+ or 24.15+. Each app has its own dependencies:
 
 ```sh
 npm run install:all
@@ -52,22 +56,42 @@ npm run install:all
 
 ## Deploy
 
-The D1 database, R2 bucket, schema and imported content are already in place on the Cloudflare account.
+GitHub Actions (`.github/workflows/deploy.yml`) builds and tests both apps on every push and pull request. On a push
+to `main` or `scrov-patch-1`, or when started by hand (Actions → CI and deploy → Run workflow), it then deploys:
+
+1. **CMS**: applies new D1 migrations, deploys the `lingerie-cms` Worker, and sets its admin password.
+2. **Storefront**: deploys the `lingerie` Worker with the static files, builds `apps/web/Dockerfile`, pushes the image
+   to Cloudflare's registry and replaces the running container.
+3. Checks that https://lingerie-cms.scrov.app and https://lingerie.scrov.app answer with a server-rendered page.
+
+Before the first run, add these repository secrets under Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | API token. Create it from the **Edit Cloudflare Workers** template, then add **Account › Containers › Edit** and **Account › D1 › Edit**. Limit it to this account and the `scrov.app` zone. |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID (Workers & Pages overview, right-hand column). |
+| `CMS_ADMIN_TOKEN` | Optional. The CMS admin password, e.g. `openssl rand -base64 32`. When set, each deploy writes it to the CMS. Without it, set it once with `npx wrangler secret put ADMIN_TOKEN` in `apps/cms`. |
+
+Containers need the **Workers Paid** plan. The first container deploy can take a few minutes to come up; the workflow
+waits for it.
+
+**How the storefront runs.** Requests for files in `dist/browser` never reach the Worker. Everything else goes through
+`apps/web/worker/index.ts` to one container instance (¼ vCPU, 1 GiB, in eastern North America) running
+`dist/server/server.mjs`. A cron trigger pings it every 5 minutes so visitors don't wait for a cold start; it costs one
+small instance running around the clock. To let it sleep after 30 idle minutes instead, remove `triggers` from
+`apps/web/wrangler.jsonc` (the first visit after that waits a few seconds). If the container is down, visitors get a
+short "the site is updating" page with the shop's phone number.
+
+**Deploying by hand** works too, with Docker running:
 
 ```sh
-# 1. CMS
-cd apps/cms
-npx wrangler login
-npx wrangler secret put ADMIN_TOKEN    # a long random string, e.g. `openssl rand -base64 32`; this is the admin password
-npx wrangler deploy                    # also attaches lingerie-cms.scrov.app
-
-# 2. Storefront
-cd ../web
-npm run deploy                         # ng build + wrangler deploy; attaches lingerie.scrov.app to the "lingerie" Worker
+cd apps/cms && npx wrangler d1 migrations apply lingerie-cms --remote && npx wrangler deploy
+cd ../web && npm run deploy          # ng build + wrangler deploy (builds and pushes the container image)
 ```
 
 Both custom domains need the `scrov.app` zone to be on the same Cloudflare account. If `lingerie.scrov.app` is already
-attached elsewhere, Wrangler will say so; detach it there first.
+attached elsewhere, Wrangler will say so; detach it there first. If the `lingerie` Worker is also connected to this
+repository through Workers Builds (Worker → Settings → Builds), disconnect it so the two don't deploy over each other.
 
 **Recommended:** put Cloudflare Access (Zero Trust → Access → Applications) in front of
 `lingerie-cms.scrov.app/admin*` and `lingerie-cms.scrov.app/api/admin*`. The public API (`/api/…`) and `/media/…`
@@ -94,5 +118,8 @@ Tests:
 npm run test:cms                 # API tests on node:sqlite + in-memory R2, no Cloudflare account needed
 npm --prefix apps/web test       # Angular unit tests (Vitest)
 ```
+
+The container itself: `cd apps/web && npx ng build && docker build -t storefront . && docker run -p 8080:8080 storefront`,
+then open http://localhost:8080.
 
 Schema changes: add `apps/cms/migrations/000N_name.sql`, then `npx wrangler d1 migrations apply lingerie-cms --remote`.

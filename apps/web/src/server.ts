@@ -1,32 +1,113 @@
-import { AngularAppEngine, createRequestHandler } from '@angular/ssr';
+import { AngularAppEngine } from '@angular/ssr';
+import { createNodeRequestHandler, isMainModule, writeResponseToNodeResponse } from '@angular/ssr/node';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { Readable } from 'node:stream';
+
+/**
+ * Storefront SSR server. In production it runs inside a Cloudflare Container (see Dockerfile and
+ * worker/index.ts); `ng serve` uses the exported `reqHandler` during development.
+ */
 
 /** Must match CMS_URL in src/app/cms/cms.ts. */
 const CMS_URL = 'https://lingerie-cms.scrov.app';
 const SITE_NAME = 'Lingerie & Maillots Christine';
 
-const angularApp = new AngularAppEngine({
-	// It is safe to set allow `localhost`, so that SSR can run in local development,
-	// as, in production, Cloudflare will ensure that `localhost` is not the host.
-	allowedHosts: ['localhost'],
-});
+/** Canonical public address. Requests for any other host are rendered as if made to this one. */
+const PUBLIC_ORIGIN = new URL(process.env['PUBLIC_ORIGIN'] || 'https://lingerie.scrov.app');
+const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1', PUBLIC_ORIGIN.hostname]);
 
-/**
- * This is a request handler used by the Angular CLI (dev-server and during build).
- */
-export const reqHandler = createRequestHandler(async (req) => {
-	const url = new URL(req.url);
+const angularApp = new AngularAppEngine({ allowedHosts: [...ALLOWED_HOSTS] });
 
+async function handle(request: Request): Promise<Response | null> {
+	const url = new URL(request.url);
+	if (url.pathname === '/healthz') {
+		return new Response('ok', { headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } });
+	}
 	const moved = legacyRedirect(url);
 	if (moved) return moved;
 	if (url.pathname === '/rss.xml') return feeds(rss, url);
 	if (url.pathname === '/sitemap.xml') return feeds(sitemap, url);
+	return angularApp.handle(request);
+}
 
-	const res = await angularApp.handle(req);
+// ---------- Node adapter ----------
 
-	return res ?? new Response('Page introuvable.', { status: 404 });
-});
+function firstHeader(req: IncomingMessage, name: string): string | undefined {
+	const value = req.headers[name];
+	return (Array.isArray(value) ? value[0] : value)?.split(',')[0]?.trim() || undefined;
+}
 
-export default { fetch: reqHandler };
+/**
+ * The container has no public ingress: every request comes through the front Worker, which sets
+ * X-Forwarded-Host/Proto itself (overwriting anything the visitor sent). Unknown hosts fall back to
+ * PUBLIC_ORIGIN so absolute URLs (redirects, sitemap, og:image) always use the real domain.
+ */
+function toWebRequest(req: IncomingMessage): Request {
+	const headers = new Headers();
+	for (const [name, value] of Object.entries(req.headers)) {
+		if (value === undefined) continue;
+		if (Array.isArray(value)) for (const v of value) headers.append(name, v);
+		else headers.set(name, value);
+	}
+	const host = (firstHeader(req, 'x-forwarded-host') ?? firstHeader(req, 'host') ?? '').toLowerCase();
+	const hostname = host.replace(/:\d+$/, '');
+	let origin = PUBLIC_ORIGIN;
+	if (ALLOWED_HOSTS.has(hostname)) {
+		const proto = firstHeader(req, 'x-forwarded-proto') === 'https' ? 'https' : 'http';
+		origin = new URL(`${proto}://${host}`);
+	}
+	// The forwarded values are now in the URL. Make Host agree with it (the Worker connects as "container"),
+	// so Angular's allowed-hosts check sees the public host and not the internal one.
+	headers.set('host', origin.host);
+	headers.delete('x-forwarded-host');
+	headers.delete('x-forwarded-proto');
+	const method = req.method ?? 'GET';
+	const hasBody = method !== 'GET' && method !== 'HEAD';
+	return new Request(new URL(req.url ?? '/', origin), {
+		method,
+		headers,
+		body: hasBody ? (Readable.toWeb(req) as unknown as BodyInit) : undefined,
+		duplex: hasBody ? 'half' : undefined,
+	} as RequestInit);
+}
+
+async function nodeHandler(req: IncomingMessage, res: ServerResponse, next?: (error?: unknown) => void): Promise<void> {
+	try {
+		const response = await handle(toWebRequest(req));
+		if (response) {
+			await writeResponseToNodeResponse(response, res);
+		} else if (next) {
+			next();
+		} else {
+			res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Page introuvable.');
+		}
+	} catch (error) {
+		if (next) {
+			next(error);
+			return;
+		}
+		console.error(JSON.stringify({ msg: 'ssr_error', path: req.url, error: error instanceof Error ? error.stack : String(error) }));
+		if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+		res.end('Une erreur est survenue.');
+	}
+}
+
+/** Used by the Angular CLI dev server (`ng serve`). */
+export const reqHandler = createNodeRequestHandler(nodeHandler);
+
+if (isMainModule(import.meta.url)) {
+	const port = Number(process.env['PORT'] || 8080);
+	const server = createServer((req, res) => void nodeHandler(req, res));
+	server.keepAliveTimeout = 65_000;
+	server.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ msg: 'listening', port, origin: PUBLIC_ORIGIN.origin })));
+	// Rollouts send SIGTERM: finish in-flight requests, then exit.
+	for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+		process.once(signal, () => {
+			server.close(() => process.exit(0));
+			setTimeout(() => process.exit(0), 10_000).unref();
+		});
+	}
+}
 
 // ---------- Old site URLs ----------
 
@@ -60,7 +141,7 @@ const xmlEscape = (s: string) =>
 	s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
 async function cms<T>(path: string): Promise<T> {
-	const res = await fetch(CMS_URL + path, { headers: { Accept: 'application/json' } });
+	const res = await fetch(CMS_URL + path, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
 	if (!res.ok) throw new Error(`CMS ${path} responded ${res.status}`);
 	return (await res.json()) as T;
 }

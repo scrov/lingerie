@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:web": "node dist/web/server/server.mjs",
+    "typecheck:worker": "tsc -p tsconfig.worker.json",
+    "serve:ssr:web": "node dist/server/server.mjs",
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types"

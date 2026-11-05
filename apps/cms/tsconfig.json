@@ -1,16 +1,16 @@
+/* Type-checks the CMS Worker against the Workers runtime types in worker-configuration.d.ts (`npm run cf-typegen`). */
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
+    "module": "ES2022",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
+    "lib": ["ES2023"],
+    "types": [],
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "noEmit": true,
-    "skipLibCheck": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": false
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "include": ["src", "test"]
+  "include": ["src", "worker-configuration.d.ts"]
 }

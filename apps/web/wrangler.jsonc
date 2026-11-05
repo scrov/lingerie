@@ -1,22 +1,48 @@
 /**
- * Storefront Worker (Angular SSR). Configuration reference:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
+ * Storefront: front Worker + Angular SSR in a Cloudflare Container (requires the Workers Paid plan).
+ * https://developers.cloudflare.com/containers/configuration/wrangler/
+ *
+ * Deploy after `ng build` (static files and the container image both come from ./dist):
+ *   npm run deploy
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	// Matches the Worker already on the account.
 	"name": "lingerie",
-	"main": "./dist/server/server.mjs",
+	"main": "./worker/index.ts",
 	"compatibility_date": "2026-10-23",
+	"observability": { "enabled": true },
+	"upload_source_maps": true,
+
+	// Files in dist/browser are served directly; everything else reaches the Worker.
 	"assets": {
 		"binding": "ASSETS",
 		"directory": "./dist/browser"
 	},
-	"observability": {
-		"enabled": true
+
+	"vars": {
+		"PUBLIC_ORIGIN": "https://lingerie.scrov.app"
 	},
-	"upload_source_maps": true,
+
+	"containers": [
+		{
+			"class_name": "Storefront",
+			"image": "./Dockerfile",
+			// 1/4 vCPU, 1 GiB: enough for Angular SSR at boutique traffic.
+			"instance_type": "basic",
+			// One instance serves the site; the second lets a rollout start a replacement.
+			"max_instances": 2,
+			"constraints": { "regions": ["ENAM"] }
+		}
+	],
+	"durable_objects": {
+		"bindings": [{ "name": "STOREFRONT", "class_name": "Storefront" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Storefront"] }],
+
+	// Keeps the container warm (see worker/index.ts). Remove to let it sleep after 30 idle minutes.
+	"triggers": { "crons": ["*/5 * * * *"] },
+
 	"workers_dev": true,
 	"routes": [{ "pattern": "lingerie.scrov.app", "custom_domain": true }]
-	// Content comes from the CMS Worker (apps/cms) at https://lingerie-cms.scrov.app — see src/app/cms/cms.ts.
 }
