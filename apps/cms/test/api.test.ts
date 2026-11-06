@@ -50,6 +50,14 @@ describe('public API', () => {
     assert.deepEqual(json, { ok: true });
   });
 
+  test('also answers under the /cms prefix used by the storefront', async () => {
+    const plain = await call('GET', '/api/settings');
+    const prefixed = await call('GET', '/cms/api/settings');
+    assert.equal(prefixed.res.status, 200);
+    assert.deepEqual(prefixed.json, plain.json);
+    assert.equal((await call('GET', '/cms/api/nope')).res.status, 404);
+  });
+
   test('business settings from the migration', async () => {
     const s = await call('GET', '/api/settings');
     assert.equal(s.json.site_name, 'Lingerie & Maillots Christine');

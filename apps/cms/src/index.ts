@@ -118,8 +118,10 @@ function decodeSegments(pathname: string): string[] | null {
 }
 
 async function dispatch(req: Request, env: Env, url: URL): Promise<Response> {
-  const segments = decodeSegments(url.pathname);
+  let segments = decodeSegments(url.pathname);
   if (!segments) throw notFound();
+  // The storefront reaches the public API as /cms/api/… and /cms/media/… (same-origin proxy, service binding).
+  if (segments[0] === 'cms' && (segments[1] === 'api' || segments[1] === 'media')) segments = segments.slice(1);
   const method = req.method === 'HEAD' ? 'GET' : req.method;
   const isApi = segments[0] === 'api' || segments[0] === 'media';
 
