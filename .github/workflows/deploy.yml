@@ -82,9 +82,29 @@ jobs:
       - name: Build container image
         run: docker build --platform linux/amd64 -t lingerie-storefront:ci .
 
+      # The real CMS Worker, run locally (wrangler dev) with the imported content, so the container renders real pages.
+      - name: Start a local CMS
+        working-directory: apps/cms
+        run: |
+          npm install --no-audit --no-fund
+          npx wrangler d1 migrations apply lingerie-cms --local
+          npx wrangler d1 execute lingerie-cms --local --file seed/legacy-content.sql > /dev/null
+          npx wrangler d1 execute lingerie-cms --local --file seed/product-pages.sql > /dev/null
+          nohup npx wrangler dev --port 8787 --ip 0.0.0.0 --var "ADMIN_TOKEN:$CMS_ADMIN_TOKEN" > "$RUNNER_TEMP/cms.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8787/api/health >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/cms.log"
+          echo "::error::The local CMS did not start"
+          exit 1
+        env:
+          CMS_ADMIN_TOKEN: ci-admin-token-0123456789abcdef
+
       - name: Smoke test the container
         run: |
-          docker run -d --name storefront -p 8080:8080 lingerie-storefront:ci
+          docker run -d --name storefront -p 8080:8080 --add-host=host.docker.internal:host-gateway \
+            -e CMS_INTERNAL_URL=http://host.docker.internal:8787 lingerie-storefront:ci
 
           for i in $(seq 1 30); do
             curl -fsS http://localhost:8080/healthz >/dev/null 2>&1 && break
@@ -113,6 +133,17 @@ jobs:
           else
             echo "::error::GET / with the Worker's forwarding headers was not server-rendered"; fail=1
           fi
+          if curl -s http://localhost:8080/ | grep -q 'menu-produits'; then
+            echo "ok   GET / has the Produits menu (content from the CMS)"
+          else
+            echo "::error::GET / has no Produits menu: the server could not read the CMS"; fail=1
+          fi
+          if curl -s http://localhost:8080/cms/api/settings | grep -q '"site_name"'; then
+            echo "ok   /cms/api/settings proxies the CMS"
+          else
+            echo "::error::/cms/api/settings does not reach the CMS"; fail=1
+          fi
+          expect "the CMS admin API is not proxied" "$(status http://localhost:8080/cms/api/admin/settings)" "404"
           expect "old URL redirects" "$(status http://localhost:8080/blog.html)" "301"
           expect "redirect uses the forwarded host" \
             "$(location -H 'X-Forwarded-Host: lingerie.scrov.app' -H 'X-Forwarded-Proto: https' http://localhost:8080/index.html)" \
@@ -129,6 +160,7 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/pw/node_modules/playwright-core/index.mjs
           PRINT_SCREENSHOTS: ${{ inputs.print_screenshots && '1' || '0' }}
+          CMS_ADMIN_TOKEN: ci-admin-token-0123456789abcdef
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -138,9 +170,11 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Container logs
+      - name: Container and CMS logs
         if: always()
-        run: docker logs storefront 2>&1 | tail -n 100 || true
+        run: |
+          docker logs storefront 2>&1 | tail -n 60 || true
+          tail -n 40 "$RUNNER_TEMP/cms.log" 2>/dev/null || true
 
       - name: Validate Worker bundle and config
         run: npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/web-dry-run"

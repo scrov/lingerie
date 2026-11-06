@@ -8,9 +8,19 @@ import { Readable } from 'node:stream';
  * worker/index.ts); `ng serve` uses the exported `reqHandler` during development.
  */
 
-/** Must match CMS_URL in src/app/cms/cms.ts. */
-const CMS_URL = 'https://lingerie-cms.scrov.app';
+/**
+ * Where this server reaches the CMS. In the Cloudflare Container it is http://cms.internal, which the front Worker
+ * hands to the CMS service binding (worker/index.ts); elsewhere the public address.
+ */
+const CMS_ORIGIN = new URL(process.env['CMS_INTERNAL_URL'] || 'https://lingerie-cms.scrov.app').origin;
 const SITE_NAME = 'Lingerie & Maillots Christine';
+
+/** Read by app.config.server.ts: Angular fetches CMS content from here while rendering. */
+export interface SsrContext {
+	cmsOrigin: string;
+	cmsBase: string;
+}
+const SSR_CONTEXT: SsrContext = { cmsOrigin: CMS_ORIGIN, cmsBase: `${CMS_ORIGIN}/cms` };
 
 /** Canonical public address. Requests for any other host are rendered as if made to this one. */
 const PUBLIC_ORIGIN = new URL(process.env['PUBLIC_ORIGIN'] || 'https://lingerie.scrov.app');
@@ -25,9 +35,30 @@ async function handle(request: Request): Promise<Response | null> {
 	}
 	const moved = legacyRedirect(url);
 	if (moved) return moved;
+	if (url.pathname.startsWith('/cms/')) return proxyCms(request, url);
 	if (url.pathname === '/rss.xml') return feeds(rss, url);
 	if (url.pathname === '/sitemap.xml') return feeds(sitemap, url);
-	return angularApp.handle(request);
+	return angularApp.handle(request, SSR_CONTEXT);
+}
+
+/**
+ * Browsers read CMS content from /cms/api/… on this site. In production the front Worker answers these before the
+ * container; this covers `ng serve`, CI and any other setup without that Worker.
+ */
+async function proxyCms(request: Request, url: URL): Promise<Response> {
+	if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Méthode non permise', { status: 405 });
+	if (url.pathname.startsWith('/cms/api/admin')) return new Response('Introuvable', { status: 404 });
+	const upstream = await fetch(CMS_ORIGIN + url.pathname + url.search, {
+		method: request.method,
+		headers: { Accept: request.headers.get('accept') ?? '*/*' },
+		signal: AbortSignal.timeout(10_000),
+	});
+	const headers = new Headers();
+	for (const name of ['content-type', 'cache-control', 'etag', 'last-modified']) {
+		const value = upstream.headers.get(name);
+		if (value) headers.set(name, value);
+	}
+	return new Response(upstream.body, { status: upstream.status, headers });
 }
 
 // ---------- Node adapter ----------
@@ -141,7 +172,7 @@ const xmlEscape = (s: string) =>
 	s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
 async function cms<T>(path: string): Promise<T> {
-	const res = await fetch(CMS_URL + path, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
+	const res = await fetch(CMS_ORIGIN + path, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
 	if (!res.ok) throw new Error(`CMS ${path} responded ${res.status}`);
 	return (await res.json()) as T;
 }

@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20261023.1 2026-10-23
 interface __BaseEnv_Env {
 	ASSETS: Fetcher;
+	CMS: Fetcher;
 	PUBLIC_ORIGIN: "https://lingerie.scrov.app";
 	STOREFRONT: DurableObjectNamespace<import("./worker/index").Storefront>;
 }

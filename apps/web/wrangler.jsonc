@@ -24,6 +24,10 @@
 		"PUBLIC_ORIGIN": "https://lingerie.scrov.app"
 	},
 
+	// The CMS Worker, called directly (no public hostname, so no zone security challenges): by the /cms/* proxy for
+	// browsers, and by the container through outbound interception of http://cms.internal (see worker/index.ts).
+	"services": [{ "binding": "CMS", "service": "lingerie-cms" }],
+
 	"containers": [
 		{
 			"class_name": "Storefront",

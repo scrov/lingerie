@@ -12,6 +12,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' })),
     // Hydration reuses the CMS responses fetched during server rendering instead of requesting them again.
     provideClientHydration(withEventReplay()),
-    // Local CMS: { provide: CMS_URL, useValue: 'http://localhost:8787' } (import CMS_URL from './cms/cms').
+    // CMS calls go to <site>/cms/… in the browser; for a local CMS start the server with CMS_INTERNAL_URL=http://localhost:8787.
   ],
 };

@@ -13,6 +13,8 @@ import { DurableObject } from 'cloudflare:workers';
 
 const PORT = 8080;
 const INSTANCE_NAME = 'storefront';
+/** Hostname the container uses for the CMS; its HTTP requests there are handed to the CMS service binding. */
+const CMS_HOST = 'cms.internal';
 /** Container stops after this long with no requests (the cron trigger normally prevents that). Max 6 h. */
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 /** How long a cold start may take before requests fail: 150 × 200 ms + per-attempt latency. */
@@ -83,13 +85,15 @@ export class Storefront extends DurableObject<Env> {
 		if (!container.running) {
 			const started = Date.now();
 			container.start({
-				// The SSR server fetches content from the CMS at lingerie-cms.scrov.app.
 				enableInternet: true,
-				env: { PORT: String(PORT), PUBLIC_ORIGIN: this.env.PUBLIC_ORIGIN, NODE_ENV: 'production' },
+				env: { PORT: String(PORT), PUBLIC_ORIGIN: this.env.PUBLIC_ORIGIN, CMS_INTERNAL_URL: `http://${CMS_HOST}`, NODE_ENV: 'production' },
 			});
 			console.log(JSON.stringify({ msg: 'container_starting', at: started }));
 		}
 		await container.setInactivityTimeout(INACTIVITY_TIMEOUT_MS);
+		// Content requests go straight to the CMS Worker instead of out to the internet and back through
+		// lingerie-cms.scrov.app, whose zone may challenge non-browser traffic. Lasts until the container stops.
+		await container.interceptOutboundHttp(CMS_HOST, this.env.CMS);
 
 		const port = container.getTcpPort(PORT);
 		let lastError: unknown;
@@ -113,9 +117,27 @@ function storefront(env: Env): DurableObjectStub<Storefront> {
 	return env.STOREFRONT.getByName(INSTANCE_NAME, { locationHint: 'enam' });
 }
 
+/**
+ * Same-origin, read-only access to the CMS public API and media for browsers: /cms/api/… and /cms/media/….
+ * The CMS strips the /cms prefix itself. Admin routes stay on the CMS's own domain.
+ */
+function proxyCms(request: Request, env: Env, url: URL): Promise<Response> | Response {
+	if (request.method !== 'GET' && request.method !== 'HEAD') {
+		return new Response('Méthode non permise', { status: 405, headers: { Allow: 'GET, HEAD' } });
+	}
+	if (url.pathname.startsWith('/cms/api/admin')) return new Response('Introuvable', { status: 404 });
+	const headers = new Headers();
+	for (const name of ['Accept', 'Accept-Encoding', 'If-None-Match', 'If-Modified-Since', 'Range']) {
+		const value = request.headers.get(name);
+		if (value) headers.set(name, value);
+	}
+	return env.CMS.fetch(new Request(`https://lingerie-cms.scrov.app${url.pathname}${url.search}`, { method: request.method, headers }));
+}
+
 export default {
 	async fetch(request, env): Promise<Response> {
 		const url = new URL(request.url);
+		if (url.pathname.startsWith('/cms/')) return proxyCms(request, env, url);
 		// The container trusts these headers, so always overwrite whatever the visitor sent.
 		const headers = new Headers(request.headers);
 		headers.set('X-Forwarded-Host', url.host);

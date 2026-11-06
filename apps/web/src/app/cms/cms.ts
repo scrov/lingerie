@@ -1,11 +1,20 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Injectable, InjectionToken, inject } from '@angular/core';
+import { DOCUMENT, Injectable, InjectionToken, inject } from '@angular/core';
 import { Observable, catchError, map, of, shareReplay, startWith } from 'rxjs';
 
-/** Base URL of the CMS Worker (apps/cms). For local work: { provide: CMS_URL, useValue: 'http://localhost:8787' }. */
+/** The CMS Worker's own address (apps/cms). */
+export const PUBLIC_CMS_URL = 'https://lingerie-cms.scrov.app';
+
+/**
+ * Base URL for CMS API calls. In the browser: this site's /cms/ path, a same-origin proxy to the CMS (worker/index.ts
+ * in production, server.ts otherwise). On the server it is set by app.config.server.ts.
+ */
 export const CMS_URL = new InjectionToken<string>('CMS_URL', {
   providedIn: 'root',
-  factory: () => 'https://lingerie-cms.scrov.app',
+  factory: () => {
+    const origin = inject(DOCUMENT).location?.origin;
+    return origin && origin.startsWith('http') ? `${origin}/cms` : PUBLIC_CMS_URL;
+  },
 });
 
 export interface OpeningHours {
