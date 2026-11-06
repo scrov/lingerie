@@ -39,6 +39,37 @@ export interface SiteSettings {
   instagram_url?: string;
   review_url?: string;
   footer_about?: string;
+
+  // Cookie consent banner (admin › Confidentialité)
+  consent_enabled?: boolean;
+  consent_version?: number;
+  consent_title?: string;
+  consent_message?: string;
+  consent_accept_label?: string;
+  consent_reject_label?: string;
+  consent_customize_label?: string;
+  consent_save_label?: string;
+  consent_analytics_label?: string;
+  consent_analytics_text?: string;
+  consent_marketing_label?: string;
+  consent_marketing_text?: string;
+  /** Slugs of the CMS pages linked as the privacy policy and the terms of use. */
+  privacy_page?: string;
+  terms_page?: string;
+
+  // Measurement and advertising, loaded only after consent
+  ga4_id?: string;
+  google_ads_id?: string;
+  gtm_id?: string;
+  meta_pixel_id?: string;
+
+  // Ownership verification and search engines
+  google_site_verification?: string;
+  bing_site_verification?: string;
+  facebook_domain_verification?: string;
+  seo_description?: string;
+  seo_image?: string;
+  seo_noindex?: boolean;
 }
 
 export interface PageSummary {

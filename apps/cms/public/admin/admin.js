@@ -301,6 +301,7 @@ const NAV = [
   ['#/blogue', 'Blogue'],
   ['#/medias', 'Médias'],
   ['#/reglages', 'Réglages'],
+  ['#/confidentialite', 'Confidentialité'],
 ];
 
 function shell(content) {
@@ -374,7 +375,7 @@ function loginView() {
 
 // ---------- pages ----------
 
-const SECTION_LABELS = { '': 'Hors menu', produits: 'Produits', equipe: 'Notre équipe' };
+const SECTION_LABELS = { '': 'Hors menu', produits: 'Produits', equipe: 'Notre équipe', legal: 'Pages légales (pied de page)' };
 
 async function pagesView() {
   const { data } = await api('GET', '/api/admin/pages');
@@ -411,7 +412,8 @@ async function pageEditView(id) {
   const status = h('select', { name: 'status' }, h('option', { value: 'draft' }, 'Brouillon'), h('option', { value: 'published' }, 'Publiée'));
   status.value = p.status;
   const section = h('input', { name: 'nav_section', value: p.nav_section, list: 'sections', placeholder: 'vide = hors menu' });
-  const sections = h('datalist', { id: 'sections' }, h('option', { value: 'produits' }, 'Produits'), h('option', { value: 'equipe' }, 'Notre équipe'));
+  const sections = h('datalist', { id: 'sections' }, h('option', { value: 'produits' }, 'Produits'), h('option', { value: 'equipe' }, 'Notre équipe'),
+    h('option', { value: 'legal' }, 'Pages légales (pied de page)'));
   const navLabel = h('input', { name: 'nav_label', value: p.nav_label, maxlength: 100, placeholder: 'par défaut : le titre' });
   const position = h('input', { type: 'number', name: 'position', value: p.position, step: 1 });
   const hero = imageField('hero_image', 'Image d’en-tête', p.hero_image);
@@ -444,7 +446,7 @@ async function pageEditView(id) {
       field('Résumé', excerpt, 'affiché dans les listes ; par défaut le début du contenu'),
       field('Description pour Google', seo, '160 caractères idéalement'))),
     h('div', { class: 'card' }, h('div', { class: 'card-body grid grid-3' },
-      field('Statut', status), field('Menu', section, 'produits, equipe…'), sections,
+      field('Statut', status), field('Menu', section, 'produits, equipe, legal…'), sections,
       field('Libellé dans le menu', navLabel), field('Ordre dans le menu', position, 'plus petit = plus haut'))),
     h('div', { class: 'sticky-actions' },
       isNew ? h('span') : h('div', { class: 'row' },
@@ -602,7 +604,14 @@ const TEXT_SETTINGS = [
     ['hero_subtitle', 'Sous-titre'],
   ]],
 ];
-const HANDLED = new Set(['hero_image', 'home_intro', 'hours', 'footer_about', ...TEXT_SETTINGS.flatMap(([, f]) => f.map(([k]) => k))]);
+// Keys edited on the Confidentialité screen; kept out of the « Autres réglages » JSON here.
+const PRIVACY_KEYS = [
+  'consent_enabled', 'consent_version', 'consent_title', 'consent_message', 'consent_accept_label', 'consent_reject_label',
+  'consent_customize_label', 'consent_save_label', 'consent_analytics_label', 'consent_analytics_text', 'consent_marketing_label',
+  'consent_marketing_text', 'privacy_page', 'terms_page', 'ga4_id', 'google_ads_id', 'gtm_id', 'meta_pixel_id',
+  'google_site_verification', 'bing_site_verification', 'facebook_domain_verification', 'seo_description', 'seo_image', 'seo_noindex',
+];
+const HANDLED = new Set(['hero_image', 'home_intro', 'hours', 'footer_about', ...PRIVACY_KEYS, ...TEXT_SETTINGS.flatMap(([, f]) => f.map(([k]) => k))]);
 
 async function settingsView() {
   const values = await api('GET', '/api/admin/settings');
@@ -668,6 +677,152 @@ async function settingsView() {
   return [head('Réglages'), form];
 }
 
+// ---------- confidentialité, témoins et suivi ----------
+
+const TRACKERS = [
+  ['ga4_id', 'Google Analytics 4', 'G-XXXXXXXXXX', 'mesure d’audience', 'Admin Google Analytics › Flux de données › ID de mesure'],
+  ['google_ads_id', 'Google Ads', 'AW-123456789', 'marketing', 'Google Ads › Outils › Conversions › ID de conversion'],
+  ['gtm_id', 'Google Tag Manager', 'GTM-XXXXXXX', 'les deux catégories', 'Conteneur Tag Manager ; ses balises reçoivent l’état du consentement'],
+  ['meta_pixel_id', 'Pixel Meta (Facebook)', '123456789012345', 'marketing', 'Gestionnaire d’événements Meta › Sources de données'],
+];
+
+async function privacyView() {
+  const [values, pagesRes] = await Promise.all([api('GET', '/api/admin/settings'), api('GET', '/api/admin/pages')]);
+  const pages = pagesRes.data;
+  const inputs = {};
+  const val = (k) => (values[k] === null || values[k] === undefined ? '' : String(values[k]));
+  const input = (key, attrs = {}) => (inputs[key] = h('input', { name: key, value: val(key), autocomplete: 'off', ...attrs }));
+  const area = (key, rows, maxlength) => {
+    const t = h('textarea', { name: key, rows, maxlength });
+    t.value = val(key);
+    return (inputs[key] = t);
+  };
+  const check = (key, label) => {
+    inputs[key] = h('input', { type: 'checkbox', name: key, checked: values[key] === true });
+    return h('label', { class: 'check' }, inputs[key], label);
+  };
+
+  // Pages légales : choix parmi les pages du CMS, avec leur statut.
+  const pagePicker = (key, label, hint) => {
+    const select = h('select', { name: key },
+      h('option', { value: '' }, '— Aucune —'),
+      pages.map((p) => h('option', { value: p.slug }, `${p.title} (${STATUS_LABEL[p.status]})`)));
+    select.value = val(key);
+    inputs[key] = select;
+    const note = h('div', { class: 'note-line' });
+    const draw = () => {
+      const p = pages.find((x) => x.slug === select.value);
+      note.replaceChildren(...(p
+        ? [h('span', { class: `badge ${p.status}` }, p.status === 'draft' ? 'brouillon : pas encore affichée sur le site' : 'publiée'),
+            h('a', { href: `#/pages/${p.id}` }, 'Modifier la page')]
+        : [h('span', { class: 'muted' }, 'Aucun lien affiché sur le site')]));
+    };
+    select.addEventListener('change', draw);
+    draw();
+    return h('div', { class: 'field-group' }, h('span', { class: 'field-label' }, label, h('span', { class: 'hint' }, ` · ${hint}`)), select, note);
+  };
+
+  // Bannière : aperçu en direct.
+  const preview = h('div', { class: 'consent-preview', 'aria-hidden': 'true' });
+  const drawPreview = () => {
+    const v = (k, d) => (inputs[k]?.value || '').trim() || d;
+    preview.replaceChildren(
+      h('strong', null, v('consent_title', 'Votre vie privée')),
+      h('p', null, v('consent_message', '…')),
+      h('div', { class: 'row' },
+        h('span', { class: 'fake-btn' }, v('consent_customize_label', 'Personnaliser')),
+        h('span', { class: 'fake-btn' }, v('consent_reject_label', 'Tout refuser')),
+        h('span', { class: 'fake-btn primary' }, v('consent_accept_label', 'Tout accepter'))));
+  };
+
+  const version = Number(values.consent_version) || 1;
+  const bump = h('input', { type: 'checkbox', name: 'consent_bump' });
+  const status = h('div', { class: 'status-line', role: 'status' });
+  const drawStatus = () => {
+    const active = TRACKERS.filter(([k]) => inputs[k].value.trim()).map(([, name]) => name);
+    const enabled = inputs.consent_enabled.checked;
+    status.className = `status-line ${active.length && !enabled ? 'warn' : ''}`;
+    status.textContent = !active.length
+      ? 'Aucun outil configuré : aucun témoin de mesure, et la bannière ne s’affiche pas.'
+      : enabled
+        ? `Bannière affichée aux visiteurs. Après leur accord : ${active.join(', ')}.`
+        : `Bannière désactivée : ${active.join(', ')} ne seront pas chargés, faute de consentement.`;
+  };
+
+  const seoImage = imageField('seo_image', 'Image de partage par défaut', val('seo_image'), 'aperçu Facebook, Messenger… quand la page n’a pas d’image');
+
+  const cards = [
+    h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Bannière de consentement aux témoins'), h('span', { class: 'muted' }, `version ${version}`)),
+      h('div', { class: 'card-body grid' },
+        h('div', { class: 'full' }, check('consent_enabled', 'Demander le consentement des visiteurs avant de charger les outils de mesure et de publicité')),
+        h('div', { class: 'full' }, status),
+        field('Titre', input('consent_title', { maxlength: 120 })),
+        field('Bouton « accepter »', input('consent_accept_label', { maxlength: 40 })),
+        h('div', { class: 'full' }, field('Message', area('consent_message', 3, 1000))),
+        field('Bouton « refuser »', input('consent_reject_label', { maxlength: 40 })),
+        field('Bouton « personnaliser »', input('consent_customize_label', { maxlength: 40 })),
+        field('Bouton « enregistrer mes choix »', input('consent_save_label', { maxlength: 40 })),
+        h('div', { class: 'field-group' }, h('span', { class: 'field-label' }, 'Aperçu'), preview),
+        field('Catégorie « mesure d’audience »', input('consent_analytics_label', { maxlength: 80 })),
+        field('Description', input('consent_analytics_text', { maxlength: 400 })),
+        field('Catégorie « marketing »', input('consent_marketing_label', { maxlength: 80 })),
+        field('Description', input('consent_marketing_text', { maxlength: 400 })),
+        h('div', { class: 'full' }, h('label', { class: 'check' }, bump,
+          'Redemander le consentement à tous les visiteurs (à cocher après un changement important, p. ex. un nouvel outil)')))),
+
+    h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Pages légales')),
+      h('div', { class: 'card-body grid' },
+        pagePicker('privacy_page', 'Politique de confidentialité', 'liée dans la bannière et le pied de page'),
+        pagePicker('terms_page', 'Conditions d’utilisation', 'liée dans le pied de page'),
+        h('p', { class: 'full muted' }, 'Les modèles fournis contiennent des passages « À compléter ». Relisez-les, complétez-les, puis publiez-les depuis Pages.'))),
+
+    h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Mesure d’audience et publicité')),
+      h('div', { class: 'card-body grid' },
+        TRACKERS.map(([key, label, example, category, where]) =>
+          field(label, input(key, { placeholder: example, spellcheck: 'false' }), `${category} · ${where}`)),
+        h('p', { class: 'full muted' }, 'Laissez vide pour désactiver. Ces outils ne se chargent qu’après l’accord du visiteur (mode Consentement de Google v2).'))),
+
+    h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Vérification de propriété du site')),
+      h('div', { class: 'card-body grid grid-3' },
+        field('Google Search Console', input('google_site_verification', { spellcheck: 'false' }), 'valeur « content » de la balise'),
+        field('Bing Webmaster Tools', input('bing_site_verification', { spellcheck: 'false' }), 'valeur « content »'),
+        field('Meta (domaine)', input('facebook_domain_verification', { spellcheck: 'false' }), 'valeur « content »'))),
+
+    h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Moteurs de recherche et partage')),
+      h('div', { class: 'card-body grid' },
+        h('div', { class: 'full' }, field('Description par défaut', area('seo_description', 2, 300), 'utilisée quand une page n’a pas sa propre description ; 160 caractères idéalement')),
+        h('div', { class: 'full' }, seoImage.el),
+        h('div', { class: 'full' }, check('seo_noindex', 'Demander aux moteurs de recherche de ne pas indexer le site (p. ex. tant qu’il est en préparation)')))),
+  ];
+
+  for (const k of Object.keys(inputs)) inputs[k].addEventListener('input', () => { drawPreview(); drawStatus(); });
+  inputs.consent_enabled.addEventListener('change', drawStatus);
+  drawPreview();
+  drawStatus();
+
+  const save = h('button', { class: 'primary', type: 'submit' }, 'Enregistrer');
+  const form = h('form', { onsubmit: (e) => {
+    e.preventDefault();
+    busy(save, async () => {
+      try {
+        const body = {};
+        for (const [key, el] of Object.entries(inputs)) body[key] = el.type === 'checkbox' ? el.checked : el.value.trim();
+        body.seo_image = seoImage.value;
+        body.consent_version = version + (bump.checked ? 1 : 0);
+        await api('PUT', '/api/admin/settings', body);
+        toast(bump.checked ? 'Enregistré ; le consentement sera redemandé' : 'Enregistré');
+        render();
+      } catch (err) { showFormError(form, err); }
+    });
+  } }, cards, h('div', { class: 'sticky-actions' }, h('span'), save));
+  return [head('Confidentialité et suivi'), form];
+}
+
 // ---------- routeur ----------
 
 async function loadSiteUrl() {
@@ -691,6 +846,7 @@ async function render() {
     blogue: () => (id ? postEditView(id) : postsView()),
     medias: mediaView,
     reglages: settingsView,
+    confidentialite: privacyView,
   };
   const view = views[section] || pagesView;
   app.replaceChildren(shell(h('p', { class: 'muted' }, 'Chargement…')));

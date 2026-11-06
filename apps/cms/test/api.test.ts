@@ -245,6 +245,61 @@ describe('settings', () => {
     assert.equal(pub.json.facebook_url, 'https://facebook.com/x');
     assert.equal((await call('PUT', '/api/admin/settings', { body: { 'Bad Key': 1 } })).res.status, 400);
   });
+
+  test('privacy and tracking defaults from the migration', async () => {
+    const { json } = await call('GET', '/api/settings');
+    assert.equal(json.consent_enabled, true);
+    assert.equal(json.consent_version, 1);
+    assert.equal(json.consent_accept_label, 'Tout accepter');
+    assert.equal(json.privacy_page, 'politique-de-confidentialite');
+    assert.equal(json.terms_page, 'conditions-d-utilisation');
+    assert.equal(json.ga4_id, '');
+    assert.equal(json.seo_noindex, false);
+  });
+
+  test('known keys are validated and normalised', async () => {
+    const ok = await call('PUT', '/api/admin/settings', {
+      body: { ga4_id: ' g-ab12cd34ef ', google_ads_id: 'aw-123456789', gtm_id: 'gtm-abc1234', meta_pixel_id: '123456789012345', consent_version: 2, seo_noindex: true, privacy_page: 'Politique-De-Confidentialite' },
+    });
+    assert.equal(ok.res.status, 200);
+    assert.equal(ok.json.ga4_id, 'G-AB12CD34EF');
+    assert.equal(ok.json.google_ads_id, 'AW-123456789');
+    assert.equal(ok.json.gtm_id, 'GTM-ABC1234');
+    assert.equal(ok.json.privacy_page, 'politique-de-confidentialite');
+    assert.equal(ok.json.seo_noindex, true);
+
+    const bad = async (body: Record<string, unknown>) => {
+      const r = await call('PUT', '/api/admin/settings', { body });
+      assert.equal(r.res.status, 400, JSON.stringify(body));
+      return r.json.error.details.field;
+    };
+    assert.equal(await bad({ ga4_id: 'UA-12345-1' }), 'ga4_id');
+    assert.equal(await bad({ gtm_id: 'GTM-<script>' }), 'gtm_id');
+    assert.equal(await bad({ meta_pixel_id: '12ab' }), 'meta_pixel_id');
+    assert.equal(await bad({ consent_enabled: 'yes' }), 'consent_enabled');
+    assert.equal(await bad({ consent_version: 0 }), 'consent_version');
+    assert.equal(await bad({ seo_image: 'javascript:alert(1)' }), 'seo_image');
+    assert.equal(await bad({ consent_title: 'x'.repeat(121) }), 'consent_title');
+    // A failed batch writes nothing.
+    assert.equal((await call('PUT', '/api/admin/settings', { body: { announcement: 'oui', ga4_id: 'nope' } })).res.status, 400);
+    assert.notEqual((await call('GET', '/api/settings')).json.announcement, 'oui');
+
+    const cleared = await call('PUT', '/api/admin/settings', { body: { ga4_id: null, consent_title: null } });
+    assert.equal(cleared.json.ga4_id, '');
+    assert.equal(cleared.json.consent_title, '');
+  });
+
+  test('legal pages start as unpublished drafts', async () => {
+    const pub = await call('GET', '/api/pages');
+    assert.ok(!pub.json.data.some((p: any) => p.nav_section === 'legal'));
+    assert.equal((await call('GET', '/api/pages/politique-de-confidentialite')).res.status, 404);
+    const admin = await call('GET', '/api/admin/pages');
+    const legal = admin.json.data.filter((p: any) => p.nav_section === 'legal');
+    assert.deepEqual(legal.map((p: any) => [p.slug, p.status]), [
+      ['politique-de-confidentialite', 'draft'],
+      ['conditions-d-utilisation', 'draft'],
+    ]);
+  });
 });
 
 describe('errors', () => {

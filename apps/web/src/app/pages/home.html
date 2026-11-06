@@ -1,65 +1,220 @@
 @let s = settings();
 
-<section class="hero">
-  <div class="container hero-grid">
-    <div class="hero-copy">
+<!-- Hero: copy on the left, an animated image showcase on the right. -->
+<section class="relative isolate overflow-hidden bg-gradient-to-b from-background via-secondary/50 to-secondary">
+  <span class="pointer-events-none absolute -left-40 top-10 -z-10 size-[28rem] rounded-full bg-rose/35 blur-3xl" aria-hidden="true"></span>
+  <span class="pointer-events-none absolute -right-32 -top-24 -z-10 size-[26rem] rounded-full bg-accent blur-3xl" aria-hidden="true"></span>
+
+  <div class="container grid items-center gap-12 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16 lg:py-24">
+    <div class="animate-fade-up">
       @if (s.tagline) {
-        <p class="eyebrow">{{ s.tagline }}</p>
+        <p class="eyebrow">
+          <span class="h-px w-8 bg-rose-strong" aria-hidden="true"></span>
+          {{ s.tagline }}
+        </p>
       }
-      <h1>{{ s.hero_title || s.site_name || 'Lingerie & Maillots Christine' }}</h1>
+      <h1 class="mt-5 text-balance font-serif text-[clamp(44px,6.4vw,82px)] font-semibold leading-[0.98] tracking-tight text-primary">
+        {{ s.hero_title || s.site_name || 'Lingerie & Maillots Christine' }}
+      </h1>
       @if (s.hero_subtitle) {
-        <p class="lead">{{ s.hero_subtitle }}</p>
+        <p class="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground sm:text-xl">{{ s.hero_subtitle }}</p>
       }
-      <div class="actions">
-        <a class="button" routerLink="/contact">Nous rendre visite</a>
+      <div class="mt-9 flex flex-wrap gap-3">
+        <a class="button" routerLink="/contact">
+          Nous rendre visite
+          <app-icon name="arrow-right" class="size-4" />
+        </a>
         @if (s.phone) {
-          <a class="button ghost" [href]="s.phone | telHref">{{ s.phone }}</a>
+          <a class="button outline" [href]="s.phone | telHref">
+            <app-icon name="phone" class="size-4" />
+            {{ s.phone }}
+          </a>
         }
       </div>
     </div>
-    @if (s.hero_image) {
-      <div class="hero-image">
-        <img [src]="s.hero_image" alt="" fetchpriority="high" />
+
+    @if (slides().length) {
+      <div
+        class="relative mx-auto w-full max-w-[min(440px,84vw)] animate-fade-up [animation-delay:150ms]"
+        (pointerenter)="paused.set(true)"
+        (pointerleave)="paused.set(false)"
+        (focusin)="paused.set(true)"
+        (focusout)="paused.set(false)"
+      >
+        <div class="relative aspect-[2/3] overflow-hidden rounded-b-[2.5rem] rounded-t-[999px] bg-secondary shadow-lift ring-1 ring-primary/10">
+          @for (img of slides(); track img.src; let i = $index) {
+            <div
+              class="absolute inset-0 transition-opacity duration-[1400ms] ease-out"
+              [class.opacity-0]="i !== active()"
+              [attr.aria-hidden]="i !== active()"
+            >
+              <img [src]="img.src" alt="" aria-hidden="true" class="absolute inset-0 size-full scale-125 object-cover opacity-60 blur-2xl" [attr.loading]="i === 0 ? null : 'lazy'" />
+              <img
+                [src]="img.src"
+                [alt]="img.alt"
+                class="relative size-full object-contain"
+                [class.animate-kenburns]="i === active()"
+                [attr.fetchpriority]="i === 0 ? 'high' : null"
+                [attr.loading]="i === 0 ? null : 'lazy'"
+              />
+            </div>
+          }
+          <span class="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-primary/35 to-transparent" aria-hidden="true"></span>
+
+          @if (slides().length > 1) {
+            <div class="absolute inset-x-0 bottom-5 flex justify-center gap-2">
+              @for (img of slides(); track img.src; let i = $index) {
+                <button
+                  type="button"
+                  class="h-2 w-2 cursor-pointer rounded-full bg-white/60 transition-all duration-500 hover:bg-white data-[active=true]:w-7 data-[active=true]:bg-white"
+                  [attr.data-active]="i === active()"
+                  [attr.aria-label]="'Image ' + (i + 1) + ' sur ' + slides().length"
+                  [attr.aria-current]="i === active() ? 'true' : null"
+                  (click)="showSlide(i)"
+                ></button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Floating previews -->
+        @if (gallery().length > 1) {
+          <button
+            type="button"
+            class="group absolute -left-6 top-[18%] hidden w-28 animate-float cursor-zoom-in overflow-hidden rounded-2xl border-4 border-card bg-card shadow-lift [--tilt:-6deg] sm:block lg:-left-14 lg:w-32"
+            (click)="openGallery(1)"
+            [attr.aria-label]="'Agrandir : ' + (gallery()[1].alt || 'nouveauté')"
+          >
+            <img [src]="gallery()[1].src" alt="" class="aspect-square w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+          </button>
+        }
+        <div
+          class="absolute -right-3 bottom-[14%] hidden max-w-[220px] animate-float-slow rounded-2xl border bg-card/90 p-4 shadow-lift backdrop-blur-md [--tilt:3deg] sm:block lg:-right-10"
+        >
+          <div class="flex gap-0.5 text-rose-strong" aria-hidden="true">
+            @for (n of [1, 2, 3, 4, 5]; track n) {
+              <app-icon name="star" class="size-4 [&_svg]:fill-current" />
+            }
+          </div>
+          <p class="mt-2 font-serif text-lg font-semibold leading-snug text-primary">Service-conseil personnalisé</p>
+          <p class="mt-1 text-xs text-muted-foreground">Prise de mesures en boutique, dans le respect et la discrétion.</p>
+        </div>
       </div>
     }
   </div>
 </section>
 
+<!-- Mission + what makes the boutique different -->
 @if (s.home_intro) {
-  <section class="intro">
-    <div class="container narrow">
-      <app-rich-text [html]="s.home_intro" />
-    </div>
-  </section>
-}
-
-@if (s.home_gallery?.length) {
-  <section class="gallery" aria-label="Nouveautés en boutique">
-    <div class="container">
-      <ul class="strip">
-        @for (img of s.home_gallery; track img.src) {
-          <li><img [src]="img.src" [alt]="img.alt" loading="lazy" /></li>
+  <section class="py-[clamp(56px,8vw,104px)]">
+    <div class="container grid gap-12 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)] lg:gap-16">
+      <div appReveal>
+        <p class="eyebrow">Notre mission</p>
+        <app-rich-text class="mt-5" [html]="s.home_intro" />
+      </div>
+      <ul class="grid content-start gap-4">
+        @for (f of features; track f.title; let i = $index) {
+          <li appReveal [revealDelay]="i * 110" class="group flex gap-4 rounded-2xl border bg-card p-5 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift">
+            <span class="grid size-12 shrink-0 place-items-center rounded-xl bg-secondary text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+              <app-icon [name]="f.icon" class="size-6" />
+            </span>
+            <span>
+              <span class="block font-serif text-xl font-semibold text-primary">{{ f.title }}</span>
+              <span class="mt-1 block text-sm leading-relaxed text-muted-foreground">{{ f.text }}</span>
+            </span>
+          </li>
         }
       </ul>
     </div>
   </section>
 }
 
-@if (products().length) {
-  <section class="products">
+<!-- New arrivals: animated previews, click to enlarge -->
+@if (gallery().length) {
+  <section class="bg-secondary/60 py-[clamp(56px,8vw,104px)]" aria-labelledby="nouveautes">
     <div class="container">
-      <h2 class="section-title">Nos produits</h2>
-      <ul class="product-grid">
-        @for (p of products(); track p.slug) {
-          <li>
-            <a [routerLink]="['/page', p.slug]">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div appReveal>
+          <p class="eyebrow">En boutique</p>
+          <h2 id="nouveautes" class="section-title mb-0 mt-3">Nouveautés</h2>
+        </div>
+        <p appReveal [revealDelay]="100" class="max-w-sm text-muted-foreground">Un aperçu des arrivages. Touchez une image pour l’agrandir.</p>
+      </div>
+      <ul class="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-5">
+        @for (img of gallery(); track img.src; let i = $index) {
+          <li appReveal [revealDelay]="i * 90" class="lg:even:mt-12">
+            <button
+              type="button"
+              class="group relative block aspect-[2/3] w-full cursor-zoom-in overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-primary/5 transition-shadow duration-500 hover:shadow-lift"
+              (click)="openGallery(i)"
+              [attr.aria-label]="'Agrandir : ' + (img.alt || 'image ' + (i + 1))"
+            >
+              <img [src]="img.src" alt="" aria-hidden="true" loading="lazy" class="absolute inset-0 size-full scale-125 object-cover opacity-50 blur-xl" />
+              <img
+                [src]="img.src"
+                [alt]="img.alt"
+                loading="lazy"
+                class="relative size-full object-contain transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+              />
+              <span
+                class="absolute inset-x-0 bottom-0 flex translate-y-2 items-end justify-between gap-2 bg-gradient-to-t from-black/65 via-black/25 to-transparent p-3 pt-12 text-left text-sm font-medium text-white opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100"
+              >
+                <span class="line-clamp-2">{{ img.alt }}</span>
+                <app-icon name="expand" class="size-4" />
+              </span>
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+  </section>
+  <app-lightbox [images]="gallery()" />
+}
+
+<!-- Product categories -->
+@if (products().length) {
+  <section class="py-[clamp(56px,8vw,104px)]" aria-labelledby="produits">
+    <div class="container">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div appReveal>
+          <p class="eyebrow">Pour toutes les tailles</p>
+          <h2 id="produits" class="section-title mb-0 mt-3">Nos produits</h2>
+        </div>
+      </div>
+      <ul class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+        @for (p of products(); track p.slug; let i = $index) {
+          <li appReveal [revealDelay]="(i % 3) * 100" class="lg:first:col-span-2">
+            <a
+              [routerLink]="['/page', p.slug]"
+              class="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl bg-primary p-6 text-white no-underline shadow-soft transition-shadow duration-500 hover:shadow-lift sm:aspect-auto sm:h-[340px]"
+            >
               @if (p.hero_image) {
-                <img [src]="p.hero_image" alt="" loading="lazy" />
+                <img
+                  [src]="p.hero_image"
+                  alt=""
+                  loading="lazy"
+                  class="absolute inset-0 size-full object-cover object-[center_28%] transition-transform duration-[1200ms] ease-out group-hover:scale-110"
+                />
+              } @else {
+                <span class="absolute inset-0 bg-gradient-to-br from-primary via-blue-800 to-rose-strong/80" aria-hidden="true"></span>
+                <span
+                  class="absolute -right-4 -top-10 font-serif text-[220px] font-semibold leading-none text-white/10 transition-transform duration-700 group-hover:-translate-y-2 group-hover:scale-105"
+                  aria-hidden="true"
+                  >{{ p.nav_label.charAt(0) }}</span
+                >
               }
-              <span class="label">{{ p.nav_label }}</span>
+              <span class="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/25 to-transparent" aria-hidden="true"></span>
+              <span class="relative font-serif text-[28px] font-semibold leading-tight">{{ p.nav_label }}</span>
               @if (p.excerpt) {
-                <span class="excerpt">{{ p.excerpt }}</span>
+                <span
+                  class="relative mt-1.5 line-clamp-2 max-w-md text-sm leading-relaxed text-white/80 transition-all duration-500 lg:max-h-0 lg:opacity-0 lg:group-hover:max-h-12 lg:group-hover:opacity-100 lg:group-focus-visible:max-h-12 lg:group-focus-visible:opacity-100"
+                  >{{ p.excerpt }}</span
+                >
               }
+              <span class="relative mt-4 inline-flex items-center gap-1.5 text-sm font-semibold">
+                Découvrir
+                <app-icon name="arrow-right" class="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </span>
             </a>
           </li>
         }
@@ -69,45 +224,81 @@
 }
 
 @if (video(); as v) {
-  <section class="video">
-    <div class="container narrow">
-      <div class="frame">
-        <iframe [src]="v" title="Vidéo de la boutique" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe>
+  <section class="pb-[clamp(56px,8vw,104px)]">
+    <div class="container max-w-4xl" appReveal>
+      <div class="relative aspect-video overflow-hidden rounded-2xl bg-black shadow-lift ring-1 ring-primary/10">
+        <iframe [src]="v" title="Vidéo de la boutique" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen class="absolute inset-0 size-full border-0"></iframe>
       </div>
     </div>
   </section>
 }
 
-<section class="latest">
+<!-- Latest blog posts -->
+<section class="bg-secondary/60 py-[clamp(56px,8vw,104px)]" aria-labelledby="blogue">
   <div class="container">
-    <div class="section-head">
-      <h2 class="section-title">Du blogue</h2>
-      <a routerLink="/blog">Tous les articles →</a>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div appReveal>
+        <p class="eyebrow">Conseils et nouvelles</p>
+        <h2 id="blogue" class="section-title mb-0 mt-3">Du blogue</h2>
+      </div>
+      <a routerLink="/blog" class="button outline sm" appReveal>
+        Tous les articles
+        <app-icon name="arrow-right" class="size-4" />
+      </a>
     </div>
     @switch (latest().state) {
       @case ('ready') {
-        <div class="post-grid">
-          @for (p of latestPosts(); track p.slug) {
-            <app-post-card [post]="p" />
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          @for (p of latestPosts(); track p.slug; let i = $index) {
+            <app-post-card class="block" appReveal [revealDelay]="i * 110" [post]="p" />
           }
         </div>
       }
       @case ('loading') {
-        <p class="muted">Chargement…</p>
+        <p class="muted mt-8">Chargement…</p>
       }
       @default {
-        <p class="muted">Les articles ne peuvent pas être affichés pour le moment.</p>
+        <p class="muted mt-8">Les articles ne peuvent pas être affichés pour le moment.</p>
       }
     }
   </div>
 </section>
 
-<section class="visit">
+<!-- Visit -->
+<section class="pt-[clamp(56px,8vw,104px)]" aria-labelledby="visite">
   <div class="container">
-    <h2 class="section-title">Venez nous voir</h2>
-    <app-visit-info [settings]="s" />
-    @if (s.review_url) {
-      <p class="review">Vous êtes venue en boutique? <a [href]="s.review_url" target="_blank" rel="noopener">Laissez-nous un avis Google</a>.</p>
-    }
+    <div class="grid overflow-hidden rounded-[2rem] border bg-card shadow-soft lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]" appReveal>
+      <div class="p-6 sm:p-10">
+        <p class="eyebrow">Saint-Jérôme</p>
+        <h2 id="visite" class="section-title mt-3">Venez nous voir</h2>
+        <app-visit-info [settings]="s" />
+        @if (s.review_url) {
+          <p class="mt-8 text-muted-foreground">
+            Vous êtes venue en boutique?
+            <a [href]="s.review_url" target="_blank" rel="noopener" class="font-medium">Laissez-nous un avis Google</a>.
+          </p>
+        }
+      </div>
+      <div class="relative flex flex-col justify-end overflow-hidden bg-primary p-8 text-primary-foreground sm:p-10">
+        <span class="pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-rose/25 blur-3xl" aria-hidden="true"></span>
+        <app-icon name="ruler" class="relative size-9 text-rose" />
+        <p class="relative mt-6 font-serif text-3xl font-semibold leading-tight">Un ajustement parfait commence par les bonnes mesures.</p>
+        <p class="relative mt-3 text-primary-foreground/75">Passez en boutique : on vous écoute, on prend vos mesures et on vous guide.</p>
+        <div class="relative mt-7 flex flex-wrap gap-3">
+          @if (s.phone) {
+            <a class="button secondary" [href]="s.phone | telHref">
+              <app-icon name="phone" class="size-4" />
+              {{ s.phone }}
+            </a>
+          }
+          @if (s.map_url) {
+            <a class="button border-white/25 bg-transparent text-white shadow-none hover:bg-white/10" [href]="s.map_url" target="_blank" rel="noopener">
+              <app-icon name="map-pin" class="size-4" />
+              Itinéraire
+            </a>
+          }
+        </div>
+      </div>
+    </div>
   </div>
 </section>

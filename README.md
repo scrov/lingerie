@@ -32,6 +32,12 @@ Browser ──▶ lingerie.scrov.app
 - **Médias** — image library stored in R2.
 - **Réglages** — business name, phone, address, opening hours, social links, home page headline, intro text,
   hero image and gallery, announcement bar.
+- **Confidentialité** — cookie consent banner (texts, « ask everyone again »), which pages are the privacy policy and
+  the terms of use, Google Analytics 4 / Google Ads / Google Tag Manager / Meta pixel IDs, site ownership verification
+  codes (Google, Bing, Meta), default search description and share image, and a « don't index » switch.
+  Measurement and advertising tools load only after the visitor accepts (opt-in, Google Consent Mode v2); with no
+  tool configured there is no banner and no tracking at all. The privacy policy and terms of use start as **drafts**
+  with « À compléter » passages: complete them, then publish them from Pages.
 
 The old site's 25 blog posts, home page text, contact details and hours are already imported. The eight menu pages
 (Soutiens-gorge, Maillots de bain, …, Notre équipe) exist as **drafts** with the old URLs: their text wasn't in the
@@ -40,8 +46,9 @@ scraped copy, so paste it in and publish each one. A section appears in the menu
 URLs from the old site keep working: `/page/…` and `/blog/…` are unchanged, and `index.html`, `blog.html`,
 `…/index.html` and trailing-slash addresses redirect permanently. `/rss.xml` and `/sitemap.xml` are generated from the CMS.
 
-**Storefront (`apps/web`).** `src/app/cms/` is the API client, `src/app/pages/` the routes, `src/app/shared/` shared
-pieces. Every route is rendered on the server per request, so CMS edits show up on the next page load.
+**Storefront (`apps/web`).** `src/app/cms/` is the API client, `src/app/pages/` the routes, `src/app/layout/` the
+header (with the « Produits » menu) and footer, `src/app/privacy/` the cookie banner and consent-gated tags,
+`src/app/shared/` shared pieces. Styling is Tailwind CSS v4 with shadcn/ui-style tokens in `src/styles.css`. Every route is rendered on the server per request, so CMS edits show up on the next page load.
 
 **CMS (`apps/cms`).** A dependency-free Worker: `src/` is the API, `public/admin/` the admin UI (plain JS),
 `migrations/` the D1 schema, `seed/legacy-content.sql` the imported content, `test/` API tests.
