@@ -116,7 +116,7 @@ import { Icon } from '../shared/icon';
                           <span class="min-w-0">
                             <span class="block font-medium text-primary">{{ p.nav_label }}</span>
                             @if (p.excerpt) {
-                              <span class="mt-0.5 line-clamp-2 block text-[13px] leading-snug text-muted-foreground">{{ p.excerpt }}</span>
+                              <span class="mt-0.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground">{{ p.excerpt }}</span>
                             }
                           </span>
                         </a>

@@ -75,6 +75,15 @@ export class Home {
     },
   ];
 
+  /**
+   * Product cards on a 3-column grid: the first is two columns wide, and so is the last when that fills the final
+   * row (e.g. 7 categories: 2+1, 3, 1+2).
+   */
+  protected wide(i: number): boolean {
+    const n = this.products().length;
+    return i === 0 || (n > 2 && i === n - 1 && (n + 1) % 3 === 2);
+  }
+
   private readonly lightbox = viewChild(Lightbox);
 
   constructor() {

@@ -66,16 +66,16 @@ import { Seo } from '../shared/seo';
   `,
   styles: `
     .head { padding-top: clamp(32px, 5vw, 56px); }
-    .crumbs { display: flex; gap: 8px; font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+    .crumbs { display: flex; gap: 8px; font-size: 14px; color: var(--muted-foreground); margin-bottom: 14px; }
     .crumbs a { color: var(--blue-600); }
     h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 4.5vw, 50px); line-height: 1.08; color: var(--navy); margin: 0 0 10px; text-wrap: balance; }
-    .meta { margin: 0 0 28px; color: var(--muted); }
+    .meta { margin: 0 0 28px; color: var(--muted-foreground); }
     .cover { margin-top: 0; margin-bottom: 32px; }
     .cover img { width: 100%; max-height: 520px; object-fit: contain; border-radius: var(--radius); background: var(--blush); display: block; }
     .neighbours { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 48px; }
     .neighbours a { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; color: var(--navy); font-family: var(--serif); font-size: 19px; font-weight: 600; line-height: 1.25; }
     .neighbours a:hover { border-color: var(--blue-600); }
-    .neighbours span { font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted); }
+    .neighbours span { font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted-foreground); }
     .newer { text-align: right; }
     .pad { padding-top: 64px; }
     @media (max-width: 640px) { .neighbours { grid-template-columns: 1fr; } .newer { text-align: left; } }

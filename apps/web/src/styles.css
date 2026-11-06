@@ -164,16 +164,18 @@
   }
 }
 
+/* Outside the layers on purpose: Tailwind v4 has its own `container` utility, which would otherwise win. */
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+.container.narrow {
+  max-width: 760px;
+}
+
 @layer components {
-  .container {
-    width: 100%;
-    max-width: 1240px;
-    margin-inline: auto;
-    padding-inline: var(--gutter);
-  }
-  .container.narrow {
-    max-width: 760px;
-  }
   .muted {
     color: var(--muted-foreground);
   }

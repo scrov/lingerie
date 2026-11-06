@@ -44,7 +44,7 @@ import { TelHrefPipe } from '../cms/format';
   `,
   styles: `
     .visit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 32px; }
-    h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
     h3:not(:first-child) { margin-top: 22px; }
     p { margin: 0 0 4px; }
     .phone { font-family: var(--serif); font-size: 28px; font-weight: 600; text-decoration: none; color: var(--navy); }
@@ -52,7 +52,7 @@ import { TelHrefPipe } from '../cms/format';
     .hours div { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--line); }
     dt { font-weight: 500; }
     dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
-    .closed { color: var(--muted); }
+    .closed { color: var(--muted-foreground); }
   `,
 })
 export class VisitInfo {

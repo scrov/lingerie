@@ -33,7 +33,7 @@ import { FrDatePipe } from '../cms/format';
     .placeholder { width: 100%; height: 100%; display: grid; place-items: center; background: linear-gradient(135deg, var(--blue-50), var(--blush)); }
     .placeholder span { font-family: var(--serif); font-size: 64px; color: var(--navy); opacity: 0.35; }
     .body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 8px; }
-    .meta { margin: 0; font-size: 13px; color: var(--muted); }
+    .meta { margin: 0; font-size: 13px; color: var(--muted-foreground); }
     h3 { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--navy); }
     .excerpt { margin: 0; font-size: 15px; color: var(--text-soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     @media (prefers-reduced-motion: reduce) { .card, .card:hover, .card:hover img { transition: none; transform: none; } }
