@@ -14,16 +14,21 @@ legacy/
 ```
 Browser ──▶ lingerie.scrov.app
               ├─ static file (JS, CSS, /uploads/…)? ──▶ served from the edge (Workers Static Assets)
+              ├─ /cms/api/…, /cms/media/… ──▶ Worker "lingerie" ──service binding──┐
               └─ page ──▶ Worker "lingerie" ──▶ Durable Object ──▶ Container: Angular SSR on Node
-                                                                       │ fetch
+                                                                       │ http://cms.internal (intercepted)
                                                                        ▼
-                                                    lingerie-cms ──▶ D1 "lingerie-cms"   (pages, posts, settings)
-                                                                 └─▶ R2 "lingerie-media" (images uploaded in the admin)
+                                                  service binding ──▶ lingerie-cms ──▶ D1 "lingerie-cms"   (pages, posts, settings)
+                                                                                    └─▶ R2 "lingerie-media" (uploaded images)
 ```
+
+The storefront never calls `lingerie-cms.scrov.app` over the internet: the scrov.app zone answers non-browser
+clients there with a Cloudflare challenge. The container's requests to `http://cms.internal` are handed to the
+`CMS` service binding by the front Worker, and browsers read the same API at `/cms/…` on the storefront's own domain.
 
 ## What's where
 
-**Content (CMS).** The admin at `https://lingerie-cms.scrov.app/admin/` has four sections:
+**Content (CMS).** The admin at `https://lingerie-cms.scrov.app/admin/` has five sections:
 
 - **Pages** — product category pages (« Produits » menu), the team page, any other page. Each has a menu section
   (`produits`, `equipe`, or none), a header image and rich-text content. Pages live at `/page/<slug>`.
@@ -120,11 +125,11 @@ cd apps/cms
 cp .dev.vars.example .dev.vars
 npx wrangler d1 migrations apply lingerie-cms --local
 npx wrangler d1 execute lingerie-cms --local --file seed/legacy-content.sql
+npx wrangler d1 execute lingerie-cms --local --file seed/product-pages.sql
 npm run dev
 
-# Storefront on http://localhost:4200 — point it at the local CMS by providing
-# { provide: CMS_URL, useValue: 'http://localhost:8787' } in src/app/app.config.ts
-cd apps/web && npm start
+# Storefront on http://localhost:4200, reading the local CMS (without the variable it reads the production CMS)
+cd apps/web && CMS_INTERNAL_URL=http://localhost:8787 npm start
 ```
 
 Tests:
@@ -134,7 +139,11 @@ npm run test:cms                 # API tests on node:sqlite + in-memory R2, no C
 npm --prefix apps/web test       # Angular unit tests (Vitest)
 ```
 
-The container itself: `cd apps/web && npx ng build && docker build -t storefront . && docker run -p 8080:8080 storefront`,
-then open http://localhost:8080.
+The container itself: `cd apps/web && npx ng build && docker build -t storefront . && docker run -p 8080:8080
+--add-host=host.docker.internal:host-gateway -e CMS_INTERNAL_URL=http://host.docker.internal:8787 storefront`, then open
+http://localhost:8080 (pages render; static files are served by the Worker in production, so styles are missing here).
+
+CI does the same with the seed content, then takes screenshots (home, menus, lightbox, a product page, the consent
+banner) and uploads them as the `screenshots` artifact of each run.
 
 Schema changes: add `apps/cms/migrations/000N_name.sql`, then `npx wrangler d1 migrations apply lingerie-cms --remote`.
