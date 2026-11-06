@@ -148,10 +148,18 @@ export class Cms {
   // Failures resolve to empty values so the layout still renders if the CMS is briefly unreachable.
   private readonly settings$ = this.http
     .get<SiteSettings>(`${this.base}/api/settings`)
-    .pipe(catchError(() => of<SiteSettings>({})), shareReplay(1));
+    .pipe(catchError((err: unknown) => this.fallback('settings', err, {} as SiteSettings)), shareReplay(1));
   private readonly pages$ = this.http
     .get<{ data: PageSummary[] }>(`${this.base}/api/pages`)
-    .pipe(map((r) => r.data), catchError(() => of<PageSummary[]>([])), shareReplay(1));
+    .pipe(map((r) => r.data), catchError((err: unknown) => this.fallback('pages', err, [] as PageSummary[])), shareReplay(1));
+
+  /** Logs (server log or browser console) and carries on with an empty value. */
+  private fallback<T>(what: string, err: unknown, value: T): Observable<T> {
+    const status = err instanceof HttpErrorResponse ? err.status : undefined;
+    const message = err instanceof Error ? err.message : err instanceof HttpErrorResponse ? err.message : String(err);
+    console.error(JSON.stringify({ msg: 'cms_unavailable', what, status, message }));
+    return of(value);
+  }
 
   settings(): Observable<SiteSettings> {
     return this.settings$;

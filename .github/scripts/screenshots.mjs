@@ -7,8 +7,18 @@ const BASE = 'http://localhost:8080';
 const OUT = 'screenshots';
 await mkdir(OUT, { recursive: true });
 
-const pages = await fetch('https://lingerie-cms.scrov.app/api/pages').then((r) => r.json()).then((r) => r.data).catch(() => []);
+let pages = [];
+try {
+  const res = await fetch('https://lingerie-cms.scrov.app/api/pages');
+  const text = await res.text();
+  console.log(`CMS /api/pages from the runner: ${res.status} ${res.headers.get('content-type')} ${text.slice(0, 160)}`);
+  pages = JSON.parse(text).data ?? [];
+} catch (e) {
+  console.log(`CMS /api/pages from the runner failed: ${e}`);
+}
 const product = pages.find((p) => p.nav_section === 'produits');
+const home = await fetch(BASE + '/').then((r) => r.text());
+console.log(`Server-rendered home: ${home.length} bytes, menu-produits ${home.includes('menu-produits') ? 'present' : 'MISSING'}`);
 
 const browser = await chromium.launch({ channel: 'chrome' });
 const shots = [];
@@ -47,11 +57,19 @@ async function shot(name, page, opts = {}) {
 const desktop = { width: 1280, height: 860 };
 const mobile = { width: 390, height: 844 };
 
-{
+async function step(name, fn) {
+  try {
+    await fn();
+  } catch (e) {
+    errors.push(`${name}: ${e.message.split('\n')[0]}`);
+  }
+}
+
+await step('desktop', async () => {
   const { page, context } = await open('home-desktop', desktop, '/');
   await scrollThrough(page);
   await shot('home-desktop', page, { fullPage: true });
-  await page.hover('button[aria-controls="menu-produits"]');
+  await page.hover('button[aria-controls="menu-produits"]', { timeout: 5000 });
   await page.waitForTimeout(700);
   await shot('menu-produits', page, { clip: { x: 0, y: 0, width: 1280, height: 640 } });
   await page.mouse.move(5, 800);
@@ -64,8 +82,8 @@ const mobile = { width: 390, height: 844 };
     await shot('lightbox', page);
   }
   await context.close();
-}
-{
+});
+await step('mobile', async () => {
   const { page, context } = await open('home-mobile', mobile, '/');
   await scrollThrough(page);
   await shot('home-mobile', page, { fullPage: true });
@@ -76,12 +94,14 @@ const mobile = { width: 390, height: 844 };
   await page.waitForTimeout(600);
   await shot('menu-mobile', page);
   await context.close();
-}
+});
 if (product) {
-  const { page, context } = await open('product', desktop, `/page/${product.slug}`);
-  await scrollThrough(page);
-  await shot('product-desktop', page, { fullPage: true });
-  await context.close();
+  await step('product', async () => {
+    const { page, context } = await open('product', desktop, `/page/${product.slug}`);
+    await scrollThrough(page);
+    await shot('product-desktop', page, { fullPage: true });
+    await context.close();
+  });
 }
 
 await browser.close();
