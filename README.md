@@ -56,13 +56,14 @@ npm run install:all
 
 ## Deploy
 
-Both Workers deploy from the `scrov-patch-1` branch with **Cloudflare Workers Builds** (each Worker → Settings →
-Build). Every push to that branch rebuilds and redeploys them:
+Both Workers deploy from the `prod` branch with **Cloudflare Workers Builds** (each Worker → Settings → Build). Every
+push to `prod` rebuilds and redeploys them. (`main` is the live site served by the separate `lc` Worker; nothing here
+deploys from it.)
 
 | Setting | `lingerie` (storefront) | `lingerie-cms` (CMS) |
 | --- | --- | --- |
 | Git repository | `scrov/lingerie` | `scrov/lingerie` |
-| Branch control › Production branch | `scrov-patch-1` | `scrov-patch-1` |
+| Branch control › Production branch | `prod` | `prod` |
 | Root directory | `apps/web` | `apps/cms` |
 | Build command | `npm run build` | *(empty)* |
 | Deploy command | `npx wrangler deploy` | `npx wrangler deploy` |

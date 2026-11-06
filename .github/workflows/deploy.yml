@@ -3,7 +3,7 @@
 # Optional deploy job, for when Cloudflare Workers Builds is NOT deploying these Workers (see README.md › Deploy):
 #   apps/cms  → Worker "lingerie-cms" (D1 migrations first)            https://lingerie-cms.scrov.app
 #   apps/web  → Worker "lingerie" + the Angular SSR server as a Container  https://lingerie.scrov.app
-# It runs on pushes to main and scrov-patch-1, or manually (Actions → Run workflow), and only when these repository
+# It runs on pushes to prod, or manually (Actions → Run workflow), and only when these repository
 # secrets exist (Settings → Secrets and variables → Actions); without them it is skipped:
 #   CLOUDFLARE_API_TOKEN   Account: Workers Scripts Edit, Containers Edit, D1 Edit, Workers R2 Storage Edit,
 #                          Account Settings Read; Zone (scrov.app): Workers Routes Edit.
@@ -14,7 +14,7 @@ name: CI and deploy
 
 on:
   push:
-    branches: [main, scrov-patch-1]
+    branches: [prod]
     paths-ignore: ['**/*.md', 'legacy/**']
   pull_request:
     paths-ignore: ['**/*.md', 'legacy/**']
@@ -135,7 +135,7 @@ jobs:
     name: Check deploy credentials
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/scrov-patch-1'))
+      (github.event_name == 'push' && github.ref == 'refs/heads/prod')
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
